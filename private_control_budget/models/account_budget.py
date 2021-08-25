@@ -107,7 +107,7 @@ class AccountBudgetLine(models.Model):
     amount = fields.Monetary(currency_field='company_currency_id', string="Montant Engage")
     planned_amount = fields.Float(string='Montant Prevu', digits=0)
     available_amount = fields.Float(string='Montant Disponible', digits=0)
-    product_uom_id = fields.Many2one('product.uom', string='Unit of Measure')
+    product_uom_id = fields.Many2one('uom.uom', string='Unit of Measure')
     product_id = fields.Many2one('product.product', string='Product')
     general_account_id = fields.Many2one('account.account', string='Financial Account', readonly=True)
     move_id = fields.Many2one('purchase.order.line', string='Move Line', ondelete='cascade', index=True)

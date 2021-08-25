@@ -6,7 +6,7 @@ from odoo.tools import DEFAULT_SERVER_DATETIME_FORMAT
 from odoo.tools.float_utils import float_compare
 from odoo.exceptions import UserError, AccessError, ValidationError
 from odoo.tools.misc import formatLang
-from odoo.addons import decimal_precision as dp
+#from odoo.addons import decimal_precision as dp
 import logging
 _logger = logging.getLogger(__name__)
 
@@ -15,10 +15,10 @@ class PurchaseOrder(models.Model):
     _name = "purchase.order"
     _inherit = "purchase.order"
 
-    crossovered_budget_line = fields.One2many('crossovered.budget.lines', 'analytic_account_id','Budgets', compute='_get_lines')
+    crossovered_budget_line = fields.One2many('crossovered.budget.lines', 'analytic_account_id','Budgets', compute='_get_lines', store=False)
     amount_total_to_word = fields.Char(compute='_compute_amount_total_to_word', store=True)
 
-    to_19_fr = ( u'zĂŠro',  'un',   'deux',  'trois', 'quatre',   'cinq',   'six',
+    to_19_fr = ( u'zĂŠro',  'un',  'deux',  'trois', 'quatre',   'cinq',   'six',
           'sept', 'huit', 'neuf', 'dix',   'onze', 'douze', 'treize',
           'quatorze', 'quinze', 'seize', 'dix-sept', 'dix-huit', 'dix-neuf' )
     tens_fr  = ( 'vingt', 'trente', 'quarante', 'Cinquante', 'Soixante', 'Soixante-dix', 'Quatre-vingts', 'Quatre-vingt Dix')
@@ -199,13 +199,13 @@ class PurchaseOrder(models.Model):
         final_result = start_word +' '+units_name+' '+ end_word +' '+cents_name
         return final_result
 
-    @api.multi
+    #@api.multi
     @api.depends('amount_total')
     def _compute_amount_total_to_word(self):
         for record in self:
             record.amount_total_to_word = record.amount_to_text_fr(record.amount_total, currency='')[:-10]
 
-    @api.multi
+   # @api.multi
     @api.constrains('crossovered_budget_line','order_line')
     def _control_budget_date(self):
         _logger.info("entrer dans fonction")
@@ -216,7 +216,7 @@ class PurchaseOrder(models.Model):
                         raise ValidationError(_("La date prevu n'est pas comprise dans la plage du poste budgetaire"))
         return True
 
-    @api.multi
+   # @api.multi
     def button_cancel(self):
         for order in self:
             for inv in order.invoice_ids:
@@ -225,20 +225,21 @@ class PurchaseOrder(models.Model):
         self.env['account.budget.line'].search([('ref','=',order.name)]).unlink()
         self.write({'state': 'cancel'})
 
-    @api.multi
+   # @api.multi
     @api.depends('order_line')
     def _get_lines(self):
         temoin = []
+        self.crossovered_budget_line = []
+        
         for line in self.order_line:
-            budgets = self.env['crossovered.budget.lines'].search([('analytic_account_id','=',line.account_analytic_id.id),('general_budget_id.account_ids','=',line.account_id.id),('date_from', '<', self.date_order),('date_to', '>', self.date_order)])
+            budgets = self.env['crossovered.budget.lines'].search([('analytic_account_id','=',line.account_analytic_id.id),('general_budget_id.account_ids','=',line.account_id.ids),('date_from', '<', self.date_order),('date_to', '>', self.date_order)])
             if budgets:
                 for budget in budgets:
                     if budget.id not in temoin:
                         _logger.info("budget_id => %s , temoin => %s",budget.id, temoin)
                         self.crossovered_budget_line += budget
                         temoin.append(budget.id)
-
-    @api.multi
+   # @api.multi
     def _write(self, vals):
         for order in self:
             amount_total = order.currency_id.compute(order.amount_total, order.company_id.currency_id)
@@ -314,7 +315,7 @@ class PurchaseOrder(models.Model):
         return super(PurchaseOrder, self)._write(vals)
 
 
-    @api.multi
+   # @api.multi
     def button_finance_approval(self):
         finance_validation_amount = self._get_finance_validation_amount()
         director_validation_amount = self._get_director_validation_amount()
@@ -326,14 +327,14 @@ class PurchaseOrder(models.Model):
                 order.button_director_approval()
         return True
 
-    @api.multi
+  #  @api.multi
     def button_director_approval(self):
         for order in self:
             order.with_context(call_super=True).button_approve()
         return True
 
 
-    @api.multi
+  #  @api.multi
     def button_approve(self, force=False):
         for line in self.order_line:
             if line.price_subtotal and line.available:
@@ -343,7 +344,7 @@ class PurchaseOrder(models.Model):
         if self._context.get('call_super', False):
             if self.crossovered_budget_line:
                 for crossovered_line in self.crossovered_budget_line:
-                    self.order_line.create_budget_lines(crossovered_line.general_budget_id.id, crossovered_line.analytic_account_id, crossovered_line.general_budget_id.account_ids)
+                    self.order_line.create_budget_lines(crossovered_line.general_budget_id.id, crossovered_line.analytic_account_id.id, crossovered_line.general_budget_id.account_ids.ids)
             return super(PurchaseOrder, self).button_approve()
 
         three_step_validation = self._get_three_step_validation()
@@ -416,9 +417,10 @@ class PurchaseOrderLine(models.Model):
 
         return result
 
-    @api.multi
+   # @api.multi
     @api.depends('account_id','account_analytic_id')
     def _get_available(self):
+        self.available = 0
         for record in self:
             if record.account_id and record.account_analytic_id:
                 for line in record.account_analytic_id.crossovered_budget_line:
@@ -426,9 +428,10 @@ class PurchaseOrderLine(models.Model):
                         record.available = line.available_amount
                         break
 
-    @api.multi
+  #  @api.multi
     @api.depends('account_id','account_analytic_id')
     def _get_planned(self):
+        self.planned = 0
         for record in self:
             if record.account_id and record.account_analytic_id:
                 for line in record.account_analytic_id.crossovered_budget_line:
@@ -450,7 +453,7 @@ class PurchaseOrderLine(models.Model):
                 return {'warning': mess}
 
 
-    @api.multi
+  #  @api.multi
     def create_budget_lines(self, general_budget_id, analytic_account_id, ids):
         """ Create analytic items upon validation of an account.move.line having an budget account. This
             method first remove any existing analytic item related to the line before creating any new one.
@@ -460,7 +463,7 @@ class PurchaseOrderLine(models.Model):
                 vals_line = obj_line._prepare_budget_line(general_budget_id)[0]
                 self.env['account.budget.line'].create(vals_line)
 
-    @api.one
+   # @api.one
     def _prepare_budget_line(self, general_budget_id):
         """ Prepare the values used to create() an account.budget.line upon validation of an purchase.order.line having
             an analytic account. This method is intended to be extended in other modules.

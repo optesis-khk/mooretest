@@ -45,15 +45,18 @@ class CrossoveredBudget(models.Model):
 class CrossoveredBudgetLines(models.Model):
     _inherit = "crossovered.budget.lines"
 
-    engage_amount = fields.Float(compute='_compute_engage_amount', string='Montant Engage', digits=0)
+    engage_amount = fields.Float(compute='_compute_engage_amount', string='Montant Engage', digits=0, store = False)
     available_amount = fields.Float(compute='_compute_available_amount', string='Montant Disponible', digits=0)
 
   #  @api.multi
+    
     def _compute_engage_amount(self):
+        #self.ensure_one()
         for line in self:
             result = 0.0
             id_order = 0
             acc_ids = line.general_budget_id.account_ids.ids
+           
             if not acc_ids:
                 raise UserError(_("The Budget '%s' has no accounts!") % ustr(line.general_budget_id.name))
             date_to = line.date_to
@@ -67,9 +70,10 @@ class CrossoveredBudgetLines(models.Model):
                         AND account_id=ANY(%s) AND (state='purchase' OR state='done')""",
                 (line.analytic_account_id.id, date_from, date_to, acc_ids,))
                 result = self.env.cr.fetchone()[0] or 0.0
-                line.engage_amount = result
+            line.engage_amount = result
+          
 
-  #  @api.multi
+    #@api.multi
     def _compute_available_amount(self):
         for line in self:
             if line.practical_amount > 0:
@@ -98,7 +102,7 @@ class AccountBudgetLine(models.Model):
     general_budget_id = fields.Many2one('account.budget.post', 'Poste budgétaire')
     account_id = fields.Many2one('account.analytic.account', 'Analytic Account', required=True, ondelete='restrict', index=True)
     user_id = fields.Many2one('res.users', string='User', default=_default_user)
-    tag_ids = fields.Many2many('account.analytic.tag', 'account_analytic_line_tag_rel', 'line_id', 'tag_id', string='Tags', copy=True)
+    tag_ids = fields.Many2many('account.analytic.tag', string='Tags', copy=True)
     company_id = fields.Many2one(related='account_id.company_id', string='Company', store=True, readonly=True)
     amount = fields.Monetary(currency_field='company_currency_id', string="Montant Engage")
     planned_amount = fields.Float(string='Montant Prevu', digits=0)

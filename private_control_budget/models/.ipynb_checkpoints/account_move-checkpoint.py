@@ -3,21 +3,21 @@ from odoo import fields, models, api, _
 class AccountMoveLine(models.Model):
     _inherit = "account.move.line"
 
-    available =  fields.Float(string='Montant budget restant',compute="_get_available", digits=0 , default="0")
+    available =  fields.Float(string='Montant budget restant',compute="_get_available", digits=0 , default="0",store=False)
 
-    planned =  fields.Float(string='Montant budget prevu',compute="_get_planned", digits=0 , default="0")
+   # planned =  fields.Float(string='Montant budget prevu',compute="_get_planned", digits=0 , default="0")
 
-    @api.multi
+   # @api.multi
     @api.depends('account_id','analytic_account_id')
     def _get_available(self):
         for record in self:
             if record.account_id and record.analytic_account_id:
                 for line in record.analytic_account_id.crossovered_budget_line:
-                    if record.account_id.id in line.general_budget_id.account_ids.ids:
+                    if record.account_id in line.general_budget_id.account_ids:
                         record.available = line.available_amount
                         break
 
-    @api.multi
+    #@api.multi
     @api.depends('account_id','analytic_account_id')
     def _get_planned(self):
         for record in self:
